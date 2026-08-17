@@ -52,6 +52,7 @@ import java.util.Map;
 public class GameActivity extends SDLActivity {
     private static final String TAG = "GameActivity";
     public static final int RECORD_AUDIO_REQUEST_CODE = 3;
+    public static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1001;
 
     protected Vibrator vibrator;
     protected boolean shortEdgesMode;
@@ -168,6 +169,12 @@ public class GameActivity extends SDLActivity {
                 synchronized (recordAudioRequestDummy) {
                     recordAudioRequestDummy[0] = grantResults[0];
                     recordAudioRequestDummy.notify();
+                }
+            } else if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d("GameActivity", "Notification permission granted");
+                } else {
+                    Log.d("GameActivity", "Did not get notification permission.");
                 }
             } else {
                 super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -322,6 +329,50 @@ public class GameActivity extends SDLActivity {
             }
         }
     }
+
+    // ========== NOTIFICATION METHODS ==========
+
+    @Keep
+    public void scheduleNotification(int id, long seconds, String title, String message) {
+        Log.d(TAG, "Scheduling notification: id=" + id + ", seconds=" + seconds);
+        NotificationScheduler.schedule(this, id, seconds, title, message);
+    }
+
+    @Keep
+    public void cancelNotification(int id) {
+        Log.d(TAG, "Cancelling notification: id=" + id);
+        NotificationScheduler.cancel(this, id);
+    }
+
+    @Keep
+    public void requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting notification permission");
+                requestPermissions(
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST_CODE
+                );
+            } else {
+                Log.d(TAG, "Notification permission already granted");
+            }
+        } else {
+            Log.d(TAG, "Notification permission not required on this Android version");
+        }
+    }
+
+    @Keep
+    public boolean hasNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED;
+        }
+        // On older Android versions, no runtime permission needed
+        return true;
+    }
+
+    // ========== END NOTIFICATION METHODS ==========
 
     public int getAudioSMP() {
         int smp = 256;
