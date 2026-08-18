@@ -66,10 +66,6 @@ public class GameActivity extends SDLActivity {
     @Override
     protected String getMainSharedObject() {
         String[] libs = getLibraries();
-        // Since Lollipop, you can simply pass "libname.so" to dlopen
-        // and it will resolve correct paths and load correct library.
-        // This is mandatory for extractNativeLibs=false support in
-        // Marshmallow.
         return "lib" + libs[libs.length - 1] + ".so";
     }
 
@@ -103,7 +99,6 @@ public class GameActivity extends SDLActivity {
 
         Intent intent = getIntent();
         handleIntent(intent, true);
-        // Prevent SDL sending filedropped event. Let us do that instead.
         intent.setData(null);
 
         super.onCreate(savedInstanceState);
@@ -112,7 +107,6 @@ public class GameActivity extends SDLActivity {
             return;
         }
 
-        // Set low-latency audio values
         nativeSetDefaultStreamValues(getAudioFreq(), getAudioSMP());
 
         if (android.os.Build.VERSION.SDK_INT >= 28) {
@@ -122,7 +116,6 @@ public class GameActivity extends SDLActivity {
         }
 
         if (delayedUri != null) {
-            // This delayed fd is only sent if an embedded game is present.
             sendUriAsDroppedFile(delayedUri);
             delayedUri = null;
         }
@@ -140,7 +133,6 @@ public class GameActivity extends SDLActivity {
             Log.d(TAG, "Cancelling vibration");
             vibrator.cancel();
         }
-
         super.onDestroy();
     }
 
@@ -188,14 +180,11 @@ public class GameActivity extends SDLActivity {
         InputStream inputStream;
 
         try {
-            // Prioritize main.lua in assets folder
             inputStream = am.open("main.lua");
         } catch (IOException e) {
-            // Not found, try game.love in assets folder
             try {
                 inputStream = am.open("game.love");
             } catch (IOException e2) {
-                // Not found
                 return false;
             }
         }
@@ -229,7 +218,6 @@ public class GameActivity extends SDLActivity {
 
     @Keep
     public String[] buildFileTree() {
-        // Map key is path, value is directory flag
         HashMap<String, Boolean> map = buildFileTree(getAssets(), "", new HashMap<>());
         ArrayList<String> result = new ArrayList<>();
 
@@ -276,8 +264,6 @@ public class GameActivity extends SDLActivity {
         if (isNativeLibsExtracted()) {
             return applicationInfo.nativeLibraryDir + "/?.so";
         } else {
-            // The native libs are inside the APK and can be loaded directly.
-            // FIXME: What about split APKs?
             String abi = android.os.Build.SUPPORTED_ABIS[0];
             return applicationInfo.sourceDir + "!/lib/" + abi + "/?.so";
         }
@@ -344,16 +330,37 @@ public class GameActivity extends SDLActivity {
         NotificationScheduler.cancel(this, id);
     }
 
+    /**
+     * Smart notification permission request:
+     * - First time: shows the system dialog.
+     * - Denied once: shows the system dialog again.
+     * - Permanently denied: automatically opens the system settings screen
+     *   so the player can re-enable notifications manually.
+     */
     @Keep
     public void requestNotificationPermission() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
-                Log.d(TAG, "Requesting notification permission");
-                requestPermissions(
-                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                    NOTIFICATION_PERMISSION_REQUEST_CODE
-                );
+
+                boolean askedBefore = getSharedPreferences("love_notifications", MODE_PRIVATE)
+                    .getBoolean("notif_asked", false);
+                boolean showRationale = shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS);
+
+                if (!askedBefore || showRationale) {
+                    // System dialog can still be shown
+                    getSharedPreferences("love_notifications", MODE_PRIVATE).edit()
+                        .putBoolean("notif_asked", true).apply();
+                    Log.d(TAG, "Requesting notification permission via system dialog");
+                    requestPermissions(
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        NOTIFICATION_PERMISSION_REQUEST_CODE
+                    );
+                } else {
+                    // Permanently denied: open system settings automatically
+                    Log.d(TAG, "Permission permanently denied, opening system settings");
+                    openNotificationSettings();
+                }
             } else {
                 Log.d(TAG, "Notification permission already granted");
             }
@@ -368,8 +375,24 @@ public class GameActivity extends SDLActivity {
             return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED;
         }
-        // On older Android versions, no runtime permission needed
         return true;
+    }
+
+    /**
+     * Opens the Android system screen where the user can toggle
+     * notifications for this app.
+     */
+    private void openNotificationSettings() {
+        try {
+            Intent intent = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            intent.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName());
+            startActivity(intent);
+        } catch (Exception e) {
+            // Fallback: open the generic app details settings screen
+            Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+        }
     }
 
     // ========== END NOTIFICATION METHODS ==========
@@ -414,16 +437,12 @@ public class GameActivity extends SDLActivity {
         }
 
         if (onCreate) {
-            // Game is not running
             if (isFused) {
-                // Send it as dropped file later
                 delayedUri = game;
             } else {
-                // Process for arguments
                 processOpenGame(game);
             }
         } else {
-            // Game is already running. Send it as dropped file.
             sendUriAsDroppedFile(game);
         }
     }
@@ -431,24 +450,19 @@ public class GameActivity extends SDLActivity {
     private HashMap<String, Boolean> buildFileTree(AssetManager assetManager, String dir, HashMap<String, Boolean> map) {
         String strippedDir = dir.endsWith("/") ? dir.substring(0, dir.length() - 1) : dir;
 
-        // Try open dir
         try {
             InputStream test = assetManager.open(strippedDir);
-            // It's a file
             test.close();
             map.put(strippedDir, false);
         } catch (FileNotFoundException e) {
-            // It's a directory
             String[] list = null;
 
-            // List files
             try {
                 list = assetManager.list(strippedDir);
             } catch (IOException e2) {
                 Log.e(TAG, strippedDir, e2);
             }
 
-            // Mark as file
             map.put(dir, true);
 
             if (!strippedDir.equals(dir)) {
@@ -473,10 +487,8 @@ public class GameActivity extends SDLActivity {
 
         if (scheme != null) {
             if (scheme.equals("content")) {
-                // Pass content URI as-is.
                 args = new String[]{game.toString()};
             } else if (scheme.equals("file")) {
-                // Regular file, pass as-is.
                 args = new String[]{path};
             }
         }
