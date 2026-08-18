@@ -13,13 +13,17 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 
 public class NotificationReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "love_game_notifications";
+
+    // 👇 Color de RESPALDO: si en algún teléfono quedara un anillo blanco,
+    //    se pintará de este color. Pon aquí el color dominante de tu
+    //    splash_background.png en formato HEX.
+    private static final String ICON_BACKGROUND_COLOR = "#2196F3";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -50,15 +54,17 @@ public class NotificationReceiver extends BroadcastReceiver {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Cargar el ícono a color como ícono grande
-        Bitmap largeIcon = BitmapFactory.decodeResource(context.getResources(), R.drawable.love);
-
         // Build and show notification
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.drawable.love)
-            .setLargeIcon(largeIcon)
+            // 👇👇 EL CAMBIO CLAVE:
+            //    Usa el MISMO ícono adaptativo que el launcher de tu app
+            //    (el que se crea con splash_background.png y llena todo el espacio)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            // Color de respaldo por si algún teléfono deja un anillo blanco
+            .setColor(Color.parseColor(ICON_BACKGROUND_COLOR))
+            .setColorized(true)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
