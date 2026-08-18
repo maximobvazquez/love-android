@@ -2,7 +2,7 @@
  * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
+ * warranty.  In no event will the authors be held liable for any damages
  * arising from the use of this software.
  */
 package org.love2d.android;
@@ -49,10 +49,11 @@ public class NotificationReceiver extends BroadcastReceiver {
         );
 
         // Build and show notification
+        // 👇 AQUÍ ESTÁ EL CAMBIO: usa el ícono de tu juego en vez del ícono por defecto
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.love)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
