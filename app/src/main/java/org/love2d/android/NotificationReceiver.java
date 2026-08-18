@@ -20,9 +20,8 @@ import androidx.core.app.NotificationCompat;
 public class NotificationReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "love_game_notifications";
 
-    // 👇 Color de RESPALDO: si en algún teléfono quedara un anillo blanco,
-    //    se pintará de este color. Pon aquí el color dominante de tu
-    //    splash_background.png en formato HEX.
+    // 👇 PON AQUÍ EL COLOR EXACTO DE TU ÍCONO (formato HEX)
+    // Sácalo con cualquier "color picker" tocando el fondo de tu imagen.
     private static final String ICON_BACKGROUND_COLOR = "#2196F3";
 
     @Override
@@ -36,7 +35,6 @@ public class NotificationReceiver extends BroadcastReceiver {
 
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        // Create notification channel for Android O and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
@@ -47,22 +45,17 @@ public class NotificationReceiver extends BroadcastReceiver {
             nm.createNotificationChannel(channel);
         }
 
-        // Create intent to open the game when notification is tapped
         Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
         PendingIntent pending = PendingIntent.getActivity(
             context, id, launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Build and show notification
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
-            // 👇👇 EL CAMBIO CLAVE:
-            //    Usa el MISMO ícono adaptativo que el launcher de tu app
-            //    (el que se crea con splash_background.png y llena todo el espacio)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            // Color de respaldo por si algún teléfono deja un anillo blanco
+            .setSmallIcon(R.drawable.love)
+            // 👇 Pinta el círculo del sistema del color de tu ícono:
             .setColor(Color.parseColor(ICON_BACKGROUND_COLOR))
             .setColorized(true)
             .setContentIntent(pending)
